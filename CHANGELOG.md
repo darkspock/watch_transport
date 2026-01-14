@@ -189,6 +189,41 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+### Phase 4: Testing & First Run ✅
+
+#### App Successfully Built and Tested
+**Date:** 2026-01-14 - Current Session
+
+**What was done:**
+- Added all Swift source files to Xcode project (Models, Views, Services)
+- Configured location permissions in Info.plist
+- Built the app successfully with zero errors
+- Ran app in watchOS Simulator (Apple Watch Series 9)
+- Tested location permission flow
+- Verified arrivals display with mock data
+
+**Testing completed:**
+- ✅ App launches successfully
+- ✅ Location permission prompt works
+- ✅ Home screen displays correctly
+- ✅ Stop name and distance shown
+- ✅ Arrivals list with progress bars
+- ✅ Delay indicators working
+- ✅ Line colors displaying correctly
+- ✅ Pull-to-refresh functional
+
+**Issues resolved:**
+- Fixed duplicate Models/Services/Views folders in Xcode
+- Removed "Models 2" duplicate directory
+
+**Current state:**
+- **MILESTONE:** First working prototype running in simulator! 🎉
+- Mock data displaying Madrid Metro L1 and Cercanías C3
+- All core UI components functional
+- Ready for next MVP features
+
+---
+
 ## Summary of Current Status
 
 ### ✅ Completed
@@ -212,23 +247,24 @@ All notable changes to this project will be documented in this file.
    - Auto-detect nearest stop
    - Pull-to-refresh
 
+5. **Testing & Deployment**
+   - ✅ App builds successfully in Xcode
+   - ✅ Runs in watchOS Simulator
+   - ✅ All core features working with mock data
+   - ✅ Location permissions configured
+   - ✅ First working prototype complete!
+
 ### 🚧 Next Steps
 
-1. **Immediate:**
-   - Test app in Xcode Simulator
-   - Add files to Xcode project (follow XCODE_SETUP_INSTRUCTIONS.md)
-   - Configure Info.plist for location permissions
-   - Verify location and arrivals work
-
-2. **MVP Remaining:**
-   - Favorites functionality (add/remove stops)
-   - Line browser (browse all lines and stops)
-   - Contextual termometro (line view with connections)
+1. **MVP Features Remaining:**
+   - Favorites functionality (add/remove/view favorite stops)
+   - Line browser (browse all available lines)
+   - Contextual termometro (line diagram with connections)
    - Watch face complication (rectangular)
    - Haptic feedback at interchanges
    - Real NAP API integration (replace mock data)
 
-3. **Future (v1.1+):**
+2. **Future (v1.1+):**
    - Push notifications for delays
    - Offline mode with cached schedules
    - All complication sizes
