@@ -82,7 +82,7 @@ struct LinesView: View {
                         Text("Metro")
                             .font(.headline)
                             .foregroundStyle(.secondary)
-                            .padding(.horizontal, 4)
+                            .padding(.horizontal, 12)
 
                         ForEach(metroLines) { line in
                             NavigationLink(destination: LineDetailView(line: line, dataService: dataService)) {
@@ -96,11 +96,19 @@ struct LinesView: View {
                 // Cercanías Lines Section
                 if !cercaniasLines.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Cercanías")
-                            .font(.headline)
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 4)
-                            .padding(.top, 8)
+                        HStack(spacing: 6) {
+                            Image("CercaniasLogo")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(height: 18)
+
+                            Text("Cercanías Renfe")
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                                .padding(.leading, 4)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.top, 8)
 
                         ForEach(cercaniasLines) { line in
                             NavigationLink(destination: LineDetailView(line: line, dataService: dataService)) {
@@ -133,6 +141,70 @@ struct LineRowView: View {
         line.name.count > 3 ? 13 : 16
     }
 
+    // Abbreviate station name for compact display
+    func abbreviateStation(_ name: String) -> String {
+        var abbreviated = name
+
+        // Remove city prefixes
+        abbreviated = abbreviated.replacingOccurrences(of: "Madrid-", with: "")
+        abbreviated = abbreviated.replacingOccurrences(of: "Sevilla-", with: "")
+        abbreviated = abbreviated.replacingOccurrences(of: "Barcelona-", with: "")
+        abbreviated = abbreviated.replacingOccurrences(of: "Valencia-", with: "")
+        abbreviated = abbreviated.replacingOccurrences(of: "Málaga-", with: "")
+        abbreviated = abbreviated.replacingOccurrences(of: "Bilbao-", with: "")
+
+        // Shorten specific long station names first (most specific to least specific)
+        abbreviated = abbreviated.replacingOccurrences(of: "Bilbao-Intermod. Abando Indalecio Prieto", with: "Abando")
+        abbreviated = abbreviated.replacingOccurrences(of: "Alcobendas-San Sebastián De Los Reyes", with: "Alcobendas")
+        abbreviated = abbreviated.replacingOccurrences(of: "Barcelona Estació De França", with: "Est. França")
+        abbreviated = abbreviated.replacingOccurrences(of: "València-Estació Del Nord", with: "Est. Nord")
+        abbreviated = abbreviated.replacingOccurrences(of: "Burriana-Alquerías Niño Perdido", with: "Burriana-Alq.")
+        abbreviated = abbreviated.replacingOccurrences(of: "Estivella-Albalat Dels Tarongers", with: "Estivella-Alb.")
+        abbreviated = abbreviated.replacingOccurrences(of: "Barcelona-La Sagrera-Meridiana", with: "La Sagrera")
+        abbreviated = abbreviated.replacingOccurrences(of: "Les Franqueses-Granollers Nord", with: "Granollers N.")
+        abbreviated = abbreviated.replacingOccurrences(of: "Benalmádena-Arroyo De La Miel", with: "Benalmádena")
+        abbreviated = abbreviated.replacingOccurrences(of: "San Sebastián-Donostia", with: "Donostia")
+        abbreviated = abbreviated.replacingOccurrences(of: "Universidad-Cantoblanco", with: "Univ-Canto")
+        abbreviated = abbreviated.replacingOccurrences(of: "Chamartín-Clara Campoamor", with: "Chamrt")
+        abbreviated = abbreviated.replacingOccurrences(of: "Villalba De Guadarrama", with: "Villalba Gua.")
+        abbreviated = abbreviated.replacingOccurrences(of: "Barcelona-Passeig De Gràcia", with: "P. Gràcia")
+        abbreviated = abbreviated.replacingOccurrences(of: "Barcelona-Plaça De Catalunya", with: "Pl. Catalunya")
+        abbreviated = abbreviated.replacingOccurrences(of: "Castelló De La Plana", with: "Castelló P.")
+        abbreviated = abbreviated.replacingOccurrences(of: "Alcalá De Henares", with: "Alcalá H.")
+
+        // Shorten common words
+        abbreviated = abbreviated.replacingOccurrences(of: "Aeropuerto", with: "Aerp")
+        abbreviated = abbreviated.replacingOccurrences(of: "Príncipe Pío", with: "Prínc. Pío")
+        abbreviated = abbreviated.replacingOccurrences(of: "Chamartín", with: "Chamrt")
+        abbreviated = abbreviated.replacingOccurrences(of: "Universidad", with: "Univ")
+        abbreviated = abbreviated.replacingOccurrences(of: "Estación", with: "Est")
+        abbreviated = abbreviated.replacingOccurrences(of: "Estació", with: "Est.")
+        abbreviated = abbreviated.replacingOccurrences(of: "Barcelona-", with: "Bcn-")
+        abbreviated = abbreviated.replacingOccurrences(of: "Centro Alameda", with: "Ctr Alameda")
+        abbreviated = abbreviated.replacingOccurrences(of: "Centro", with: "Ctr")
+        abbreviated = abbreviated.replacingOccurrences(of: "Hospital", with: "Hosp.")
+        abbreviated = abbreviated.replacingOccurrences(of: "Dos Hermanas", with: "Dos Herm.")
+        abbreviated = abbreviated.replacingOccurrences(of: "Hermanas", with: "Herm.")
+        abbreviated = abbreviated.replacingOccurrences(of: "Villanueva", with: "Vnva")
+        abbreviated = abbreviated.replacingOccurrences(of: "Jardines", with: "Jard.")
+        abbreviated = abbreviated.replacingOccurrences(of: "Virgen", with: "V.")
+        abbreviated = abbreviated.replacingOccurrences(of: " De La ", with: " ")
+        abbreviated = abbreviated.replacingOccurrences(of: " De Los ", with: " ")
+        abbreviated = abbreviated.replacingOccurrences(of: " Del ", with: " ")
+        abbreviated = abbreviated.replacingOccurrences(of: " De ", with: " ")
+        abbreviated = abbreviated.replacingOccurrences(of: "Santa", with: "S.")
+        abbreviated = abbreviated.replacingOccurrences(of: "Santo", with: "S.")
+        abbreviated = abbreviated.replacingOccurrences(of: "San", with: "S.")
+        abbreviated = abbreviated.replacingOccurrences(of: "Intermod.", with: "")
+
+        // Truncate if still too long (max ~15 chars)
+        if abbreviated.count > 15 {
+            abbreviated = String(abbreviated.prefix(13)) + "."
+        }
+
+        return abbreviated.trimmingCharacters(in: .whitespaces)
+    }
+
     var body: some View {
         HStack(spacing: 12) {
             // Line badge
@@ -147,17 +219,13 @@ struct LineRowView: View {
                         .fill(lineColor)
                 )
 
-            // Line info
+            // Line info - abbreviated route
             VStack(alignment: .leading, spacing: 2) {
-                Text("\(line.stops.count) stops")
-                    .font(.subheadline)
-                    .foregroundStyle(.primary)
-
                 if let firstStop = line.stops.first, let lastStop = line.stops.last {
-                    Text("\(firstStop.name) → \(lastStop.name)")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                    Text("\(abbreviateStation(firstStop.name)) - \(abbreviateStation(lastStop.name))")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.primary)
+                        .lineLimit(2)
                 }
             }
 

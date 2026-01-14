@@ -18,44 +18,6 @@ class DataService {
     var isLoading = false
     var error: Error?
 
-    // MARK: - GTFS-Realtime Services
-
-    private let networkService = NetworkService()
-    private var _gtfsRealtimeService: GTFSRealtimeService?
-    private var _gtfsMapper: GTFSRealtimeMapper?
-
-    private var gtfsRealtimeService: GTFSRealtimeService {
-        if _gtfsRealtimeService == nil {
-            _gtfsRealtimeService = GTFSRealtimeService(networkService: networkService)
-        }
-        return _gtfsRealtimeService!
-    }
-
-    private var gtfsMapper: GTFSRealtimeMapper {
-        if _gtfsMapper == nil {
-            _gtfsMapper = GTFSRealtimeMapper(dataService: self)
-        }
-        return _gtfsMapper!
-    }
-
-    // MARK: - Arrival Cache
-
-    private struct CacheEntry {
-        let arrivals: [Arrival]
-        let timestamp: Date
-
-        var isValid: Bool {
-            Date().timeIntervalSince(timestamp) < 60  // 60s TTL
-        }
-
-        var isStale: Bool {
-            Date().timeIntervalSince(timestamp) < 300  // 5 min grace period
-        }
-    }
-
-    private var arrivalCache: [String: CacheEntry] = [:]
-    private let cacheLock = NSLock()
-
     // MARK: - Public Methods
 
     // Fetch all lines and stops (placeholder for NAP API integration)
@@ -68,80 +30,11 @@ class DataService {
         await loadMockData()
     }
 
-    // Fetch arrivals for a specific stop using GTFS-Realtime API
+    // Fetch arrivals for a specific stop (placeholder for NAP API integration)
     func fetchArrivals(for stopId: String) async -> [Arrival] {
-        print("🔍 [DataService] Fetching arrivals for stop: \(stopId)")
-
-        // 1. Check cache first
-        if let cached = getCachedArrivals(for: stopId) {
-            print("✅ [DataService] Cache hit! Returning \(cached.count) cached arrivals")
-            return cached
-        }
-
-        // 2. Fetch from GTFS-RT API
-        do {
-            print("📡 [DataService] Cache miss, calling GTFS-RT API...")
-            let feed = try await gtfsRealtimeService.fetchTripUpdates(for: stopId)
-            print("📊 [DataService] API returned \(feed.entity.count) trip updates for stop \(stopId)")
-
-            let arrivals = gtfsMapper.mapToArrivals(feed: feed, stopId: stopId)
-            print("✅ [DataService] Mapped to \(arrivals.count) arrivals")
-
-            // 3. Cache results
-            cacheArrivals(arrivals, for: stopId)
-
-            return arrivals
-        } catch {
-            // 4. Handle errors gracefully
-            print("⚠️ [DataService] GTFS-RT Error: \(error)")
-
-            // Try stale cache as fallback
-            if let stale = getStaleCachedArrivals(for: stopId) {
-                print("ℹ️ [DataService] Using stale cached data for stop \(stopId)")
-                return stale
-            }
-
-            // Last resort: return empty (UI shows "No arrivals")
-            self.error = error
-            return []
-        }
-    }
-
-    // MARK: - Cache Helpers
-
-    private func getCachedArrivals(for stopId: String) -> [Arrival]? {
-        cacheLock.lock()
-        defer { cacheLock.unlock() }
-
-        guard let entry = arrivalCache[stopId], entry.isValid else {
-            return nil
-        }
-        return entry.arrivals
-    }
-
-    private func cacheArrivals(_ arrivals: [Arrival], for stopId: String) {
-        cacheLock.lock()
-        defer { cacheLock.unlock() }
-
-        arrivalCache[stopId] = CacheEntry(arrivals: arrivals, timestamp: Date())
-    }
-
-    private func getStaleCachedArrivals(for stopId: String) -> [Arrival]? {
-        cacheLock.lock()
-        defer { cacheLock.unlock() }
-
-        guard let entry = arrivalCache[stopId], entry.isStale else {
-            return nil
-        }
-        return entry.arrivals
-    }
-
-    /// Clear arrival cache (useful for pull-to-refresh)
-    func clearArrivalCache() {
-        cacheLock.lock()
-        defer { cacheLock.unlock() }
-
-        arrivalCache.removeAll()
+        // TODO: Replace with actual GTFS-RT API call
+        // For now, return mock arrivals
+        return generateMockArrivals(for: stopId)
     }
 
     // Get stop by ID
@@ -1386,56 +1279,26 @@ let sanC1 = Line(
 
     private func generateMockArrivals(for stopId: String) -> [Arrival] {
         let now = Date()
-        var mockArrivals: [Arrival] = []
 
-        // Find which lines serve this stop
-        let linesServingStop = lines.filter { line in
-            line.stops.contains { $0.id == stopId }
-        }
-
-        // Generate mock arrivals (up to 2 per line, alternating directions)
-        for line in linesServingStop.prefix(2) {
-            // Find the stop in this line
-            guard let stopIndex = line.stops.firstIndex(where: { $0.id == stopId }) else { continue }
-
-            // Generate 2 arrivals per line: one in each direction
-            let isAtFirstStop = stopIndex == 0
-            let isAtLastStop = stopIndex == line.stops.count - 1
-
-            // Direction 1: Towards end of line (if not already at end)
-            if !isAtLastStop {
-                let destination = line.stops.last?.name ?? "Unknown"
-                mockArrivals.append(
-                    Arrival(
-                        id: UUID().uuidString,
-                        lineId: line.id,
-                        lineName: line.name,
-                        destination: destination,
-                        scheduledTime: now.addingTimeInterval(TimeInterval(mockArrivals.count * 4 + 2) * 60),
-                        expectedTime: now.addingTimeInterval(TimeInterval(mockArrivals.count * 4 + 2) * 60),
-                        platform: "\(mockArrivals.count % 4 + 1)"
-                    )
-                )
-            }
-
-            // Direction 2: Towards start of line (if not already at start)
-            if !isAtFirstStop {
-                let destination = line.stops.first?.name ?? "Unknown"
-                mockArrivals.append(
-                    Arrival(
-                        id: UUID().uuidString,
-                        lineId: line.id,
-                        lineName: line.name,
-                        destination: destination,
-                        scheduledTime: now.addingTimeInterval(TimeInterval(mockArrivals.count * 4 + 2) * 60),
-                        expectedTime: now.addingTimeInterval(TimeInterval(mockArrivals.count * 4 + 2) * 60),
-                        platform: "\(mockArrivals.count % 4 + 1)"
-                    )
-                )
-            }
-        }
-
-        // Return only the first 2 arrivals (soonest)
-        return Array(mockArrivals.prefix(2))
+        return [
+            Arrival(
+                id: UUID().uuidString,
+                lineId: "madrid_c1",
+                lineName: "C1",
+                destination: "Aeropuerto T4",
+                scheduledTime: now.addingTimeInterval(3 * 60),
+                expectedTime: now.addingTimeInterval(3 * 60),
+                platform: "1"
+            ),
+            Arrival(
+                id: UUID().uuidString,
+                lineId: "madrid_c3",
+                lineName: "C3",
+                destination: "Aranjuez",
+                scheduledTime: now.addingTimeInterval(12 * 60),
+                expectedTime: now.addingTimeInterval(12 * 60),
+                platform: "3"
+            ),
+        ]
     }
 }

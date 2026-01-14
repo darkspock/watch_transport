@@ -62,6 +62,8 @@ struct ContentView: View {
             await loadData()
         }
         .refreshable {
+            // Clear arrival cache to force fresh data
+            dataService.clearArrivalCache()
             await loadData()
             // Haptic feedback when refresh completes
             WKInterfaceDevice.current().play(.success)
