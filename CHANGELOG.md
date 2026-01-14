@@ -224,6 +224,61 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+### Phase 5: Favorites Feature ✅
+
+#### Favorites Fully Functional
+**Date:** 2026-01-14 - Commits: `cae3da0`, `109e215`, `2a9150a`
+
+**What was done:**
+- Built complete Favorites system with SwiftData persistence
+- Added swipe navigation between Home and Favorites
+- Created visible star button for easy add/remove
+- Tested successfully in simulator
+
+**New files created:**
+
+1. **FavoritesManager.swift** (Service)
+   - SwiftData CRUD operations
+   - Max 5 favorites limit enforcement
+   - Usage count tracking
+   - Check if stop is favorited
+   - Get favorite stops from all stops
+
+2. **FavoritesView.swift** (View)
+   - Display all saved favorites
+   - Empty state with instructions
+   - Shows distance to each favorite
+   - Connection indicators
+   - Tap to view arrivals
+   - Swipe-to-delete option
+
+**Updated ContentView:**
+- TabView with vertical swipe navigation
+- Visible star button next to stop name (replaced context menu)
+- Tap gray star ⭐ to add to favorites
+- Tap yellow star 🌟 to remove from favorites
+- Toast notification when added
+- Integrated with SwiftData ModelContext
+
+**Fixed issues:**
+- Added Equatable conformance to Stop model
+- Replaced non-working context menu with visible button
+- Better UX for watchOS simulator
+
+**Testing completed:**
+- ✅ Add favorites works (tap star button)
+- ✅ Remove favorites works (tap filled star)
+- ✅ Swipe navigation works (up/down between views)
+- ✅ Favorites persist between app launches (SwiftData)
+- ✅ Max 5 favorites enforced
+- ✅ Toast notification appears
+- ✅ Distance and connections display correctly
+- ✅ Tap favorite to view its arrivals
+
+**User feedback:** "I love it!! It works!!" 🎉
+
+---
+
 ## Summary of Current Status
 
 ### ✅ Completed
@@ -254,10 +309,17 @@ All notable changes to this project will be documented in this file.
    - ✅ Location permissions configured
    - ✅ First working prototype complete!
 
+6. **Favorites Feature**
+   - ✅ FavoritesManager with SwiftData persistence
+   - ✅ FavoritesView with empty state
+   - ✅ Swipe navigation between Home and Favorites
+   - ✅ Visible star button to add/remove favorites
+   - ✅ Max 5 favorites enforced
+   - ✅ Tested and working perfectly!
+
 ### 🚧 Next Steps
 
 1. **MVP Features Remaining:**
-   - Favorites functionality (add/remove/view favorite stops)
    - Line browser (browse all available lines)
    - Contextual termometro (line diagram with connections)
    - Watch face complication (rectangular)
