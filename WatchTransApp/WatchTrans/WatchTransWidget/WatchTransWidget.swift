@@ -29,7 +29,7 @@ struct ArrivalProvider: TimelineProvider {
             destination: "Aranjuez",
             minutesUntilArrival: 5,
             isDelayed: false,
-            lineColor: "#FF6B35"
+            lineColor: "#813380" // Official Cercanías C3 purple
         )
     }
 
@@ -40,7 +40,7 @@ struct ArrivalProvider: TimelineProvider {
             destination: "Aranjuez",
             minutesUntilArrival: 5,
             isDelayed: false,
-            lineColor: "#FF6B35"
+            lineColor: "#813380" // Official Cercanías C3 purple
         )
         completion(entry)
     }
@@ -52,11 +52,11 @@ struct ArrivalProvider: TimelineProvider {
         // In real implementation, this would fetch from shared data or API
         let currentDate = Date()
 
-        // Mock arrivals at 5, 12, and 20 minutes
+        // Mock arrivals at 5, 12, and 20 minutes (using official Madrid colors)
         let mockArrivals = [
-            (minutes: 5, line: "C3", dest: "Aranjuez", color: "#FF6B35", delayed: false),
-            (minutes: 12, line: "L1", dest: "Valdecarros", color: "#1E90FF", delayed: true),
-            (minutes: 20, line: "C4", dest: "Parla", color: "#FFB612", delayed: false)
+            (minutes: 5, line: "C3", dest: "Aranjuez", color: "#813380", delayed: false),       // Cercanías C3 purple
+            (minutes: 12, line: "L1", dest: "Valdecarros", color: "#2ca5dd", delayed: true),   // Metro L1 light blue
+            (minutes: 20, line: "L2", dest: "Cuatro Caminos", color: "#e0292f", delayed: false) // Metro L2 red
         ]
 
         for (index, arrival) in mockArrivals.enumerated() {
@@ -82,6 +82,7 @@ struct ArrivalProvider: TimelineProvider {
 // MARK: - Complication View
 
 struct WatchTransWidgetEntryView: View {
+    @Environment(\.widgetRenderingMode) var renderingMode
     var entry: ArrivalProvider.Entry
 
     var lineColor: Color {
@@ -93,8 +94,8 @@ struct WatchTransWidgetEntryView: View {
             // Line and destination
             HStack(spacing: 4) {
                 Text(entry.lineName)
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(lineColor)
+                    .font(.system(size: 16, weight: .heavy)) // Increased size and weight per Miguel
+                    .foregroundStyle(renderingMode == .fullColor ? lineColor : .white)
 
                 Image(systemName: "arrow.right")
                     .font(.system(size: 10))
@@ -166,19 +167,142 @@ struct WatchTransWidgetEntryView: View {
     }
 }
 
+// MARK: - Circular Complication View
+
+struct WatchTransCircularView: View {
+    @Environment(\.widgetRenderingMode) var renderingMode
+    var entry: ArrivalProvider.Entry
+
+    var lineColor: Color {
+        Color(hex: entry.lineColor) ?? .blue
+    }
+
+    var body: some View {
+        ZStack {
+            // Progress ring - neutral color (Miguel's feedback: line color was too much)
+            Circle()
+                .stroke(Color.white.opacity(0.3), lineWidth: 3)
+
+            Circle()
+                .trim(from: 0, to: progressValue)
+                .stroke(Color.white, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+
+            // Content
+            VStack(spacing: 1) {
+                Text(entry.lineName)
+                    .font(.system(size: 18, weight: .heavy)) // Increased size and weight per Miguel
+                    .foregroundStyle(renderingMode == .fullColor ? lineColor : .white)
+
+                Text(timeText)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.primary)
+            }
+        }
+    }
+
+    var timeText: String {
+        if entry.minutesUntilArrival == 0 {
+            return "Now"
+        } else if entry.minutesUntilArrival == 1 {
+            return "1m"
+        } else {
+            return "\(entry.minutesUntilArrival)m"
+        }
+    }
+
+    var progressValue: Double {
+        let minutes = Double(entry.minutesUntilArrival)
+        let maxMinutes = 30.0
+        return max(0, min(1.0, 1.0 - (minutes / maxMinutes)))
+    }
+}
+
 // MARK: - Widget Configuration
 
 struct WatchTransWidget: Widget {
-    let kind: String = "WatchTransWidget"
+    let kind: String = "juan.WatchTrans.watchkitapp.NextArrival"
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: ArrivalProvider()) { entry in
-            WatchTransWidgetEntryView(entry: entry)
+            WatchTransWidgetContentView(entry: entry)
                 .containerBackground(.fill.tertiary, for: .widget)
         }
         .configurationDisplayName("Next Arrival")
         .description("See your next train or metro arrival")
-        .supportedFamilies([.accessoryRectangular])
+        .supportedFamilies([
+            .accessoryRectangular,
+            .accessoryCircular,
+            .accessoryCorner,
+            .accessoryInline
+        ])
+    }
+}
+
+// MARK: - Content View (Family Switcher)
+
+struct WatchTransWidgetContentView: View {
+    @Environment(\.widgetFamily) var family
+    var entry: ArrivalProvider.Entry
+
+    var body: some View {
+        switch family {
+        case .accessoryCircular:
+            WatchTransCircularView(entry: entry)
+        case .accessoryCorner:
+            WatchTransCornerView(entry: entry)
+        case .accessoryInline:
+            WatchTransInlineView(entry: entry)
+        default:
+            WatchTransWidgetEntryView(entry: entry)
+        }
+    }
+}
+
+// MARK: - Corner Complication View
+
+struct WatchTransCornerView: View {
+    @Environment(\.widgetRenderingMode) var renderingMode
+    var entry: ArrivalProvider.Entry
+
+    var lineColor: Color {
+        Color(hex: entry.lineColor) ?? .blue
+    }
+
+    var body: some View {
+        Text(entry.lineName)
+            .font(.system(size: 20, weight: .heavy)) // Increased size and weight per Miguel
+            .foregroundStyle(renderingMode == .fullColor ? lineColor : .white)
+            .widgetLabel {
+                Text(timeText)
+                    .font(.system(size: 15, weight: .bold))
+            }
+    }
+
+    var timeText: String {
+        if entry.minutesUntilArrival == 0 {
+            return "Now"
+        } else {
+            return "\(entry.minutesUntilArrival)m"
+        }
+    }
+}
+
+// MARK: - Inline Complication View
+
+struct WatchTransInlineView: View {
+    var entry: ArrivalProvider.Entry
+
+    var body: some View {
+        Text("\(entry.lineName): \(timeText)")
+    }
+
+    var timeText: String {
+        if entry.minutesUntilArrival == 0 {
+            return "Now"
+        } else {
+            return "\(entry.minutesUntilArrival)m"
+        }
     }
 }
 
@@ -214,7 +338,7 @@ extension Color {
         destination: "Aranjuez",
         minutesUntilArrival: 5,
         isDelayed: false,
-        lineColor: "#FF6B35"
+        lineColor: "#813380" // Official Cercanías C3 purple
     )
     ArrivalEntry(
         date: .now,
@@ -222,6 +346,6 @@ extension Color {
         destination: "Valdecarros",
         minutesUntilArrival: 2,
         isDelayed: true,
-        lineColor: "#1E90FF"
+        lineColor: "#2ca5dd" // Official Metro L1 light blue - ColorsWall
     )
 }

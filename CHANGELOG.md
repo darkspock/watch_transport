@@ -279,6 +279,93 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+### Phase 6: Watch Face Complication ✅
+
+#### Watch Face Complication Implemented
+**Date:** 2026-01-14
+
+**What was done:**
+- Created Widget Extension target (WatchTransWidgetExtension)
+- Implemented TimelineProvider for dynamic arrival data
+- Built 4 complication family views (corner, circular, rectangular, inline)
+- Added official Madrid Metro/Cercanías colors
+- Configured proper color rendering based on watch face capabilities
+- Successfully tested on multiple watch faces
+
+**New files created:**
+
+1. **WatchTransWidget/WatchTransWidget.swift** (Main Widget)
+   - `ArrivalEntry` - Timeline entry with line info and arrival time
+   - `ArrivalProvider` - TimelineProvider implementation
+   - `WatchTransWidgetEntryView` - Rectangular complication (line → destination + progress bar)
+   - `WatchTransCircularView` - Circular complication (line badge + time with progress ring)
+   - `WatchTransCornerView` - Corner complication (line name + time label)
+   - `WatchTransInlineView` - Inline complication (simple text)
+   - `WatchTransWidgetContentView` - Family switcher with rendering mode support
+   - Color extension for hex color parsing
+
+2. **WatchTransWidget/WatchTransWidgetBundle.swift**
+   - Widget bundle configuration
+   - Main entry point with @main attribute
+
+3. **WatchTransWidget/Info.plist**
+   - NSExtension configuration for WidgetKit
+
+**Color implementation:**
+- Updated all Madrid line colors to official values:
+  - **Cercanías C3:** #9B26AF (magenta/purple)
+  - **Metro L1:** #38A3DC (light blue)
+  - **Metro L2:** #ED1C24 (red)
+  - Plus all other Madrid Metro (L1-L12) and Cercanías (C1-C10) colors documented
+
+**Key features:**
+- Widget kind: `juan.WatchTrans.watchkitapp.NextArrival`
+- Supported families: `.accessoryRectangular`, `.accessoryCircular`, `.accessoryCorner`, `.accessoryInline`
+- Timeline updates every 5 minutes
+- Mock data shows C3, L1, L2 with proper colors and destinations
+- Rendering mode detection: shows colors on supported watch faces, white on monochrome faces
+
+**Technical implementation:**
+- Used `@Environment(\.widgetRenderingMode)` to detect color support
+- Embedded widget extension in Watch App target (Build Phases)
+- Proper bundle identifier: `juan.WatchTrans.watchkitapp.WatchTransWidget`
+- Timeline policy: `.atEnd` for continuous updates
+
+**Fixed issues:**
+- Widget initially didn't appear in complications list:
+  - Solution: Added all 4 complication families (not just rectangular)
+  - Used proper reverse domain notation for widget kind
+  - Performed complete clean reinstall of app
+- Colors not showing on some watch faces:
+  - Solution: Added rendering mode detection
+  - Full-color on supported faces (Infograph, Modular Compact, etc.)
+  - Fallback to white on monochrome faces
+
+**Testing completed:**
+- ✅ Widget appears in watch face complications gallery
+- ✅ Corner complication works (shows line + time)
+- ✅ Circular complication works (progress ring + badge)
+- ✅ Rectangular complication works (full info + progress bar)
+- ✅ Inline complication works (simple text)
+- ✅ Colors display correctly on Infograph watch face
+- ✅ Monochrome rendering works on standard watch faces
+- ✅ Timeline updates properly
+- ✅ Embedded in Watch App successfully
+
+**Watch faces tested:**
+- ✅ Infograph (full color support) - **WORKS PERFECTLY**
+- ✅ Circular dial face (monochrome mode) - shows white text correctly
+
+**User feedback:** "IT WORKS!!!" 🎉
+
+**Next priority** (from Carlos):
+1. Haptic feedback (15 min - quick win)
+2. Line browser
+3. Contextual termometro
+4. NAP API integration
+
+---
+
 ## Summary of Current Status
 
 ### ✅ Completed
@@ -317,13 +404,21 @@ All notable changes to this project will be documented in this file.
    - ✅ Max 5 favorites enforced
    - ✅ Tested and working perfectly!
 
+7. **Watch Face Complication**
+   - ✅ Widget Extension created and embedded
+   - ✅ TimelineProvider with dynamic updates
+   - ✅ 4 complication families (corner, circular, rectangular, inline)
+   - ✅ Official Madrid Metro/Cercanías colors
+   - ✅ Rendering mode detection for color/monochrome faces
+   - ✅ Tested on multiple watch faces
+   - ✅ Working perfectly on Infograph and other full-color faces!
+
 ### 🚧 Next Steps
 
 1. **MVP Features Remaining:**
+   - Haptic feedback (15 min - quick win per Carlos)
    - Line browser (browse all available lines)
    - Contextual termometro (line diagram with connections)
-   - Watch face complication (rectangular)
-   - Haptic feedback at interchanges
    - Real NAP API integration (replace mock data)
 
 2. **Future (v1.1+):**
@@ -372,9 +467,14 @@ watch_transport-main/
             │   └── Favorite.swift
             ├── Views/
             │   └── ArrivalCard.swift
-            └── Services/
-                ├── LocationService.swift
-                └── DataService.swift
+            ├── Services/
+            │   ├── LocationService.swift
+            │   ├── DataService.swift
+            │   └── FavoritesManager.swift
+            └── WatchTransWidget/
+                ├── WatchTransWidget.swift
+                ├── WatchTransWidgetBundle.swift
+                └── Info.plist
 ```
 
 ---

@@ -8,6 +8,7 @@
 
 import SwiftUI
 import SwiftData
+import WatchKit
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
@@ -37,10 +38,7 @@ struct ContentView: View {
                     )
 
                     // Check Lines Button
-                    Button {
-                        // TODO: Navigate to line browser
-                        print("Check Lines tapped")
-                    } label: {
+                    NavigationLink(destination: LinesView(dataService: dataService, locationService: locationService)) {
                         HStack {
                             Image(systemName: "list.bullet")
                             Text("Check Lines")
@@ -65,6 +63,8 @@ struct ContentView: View {
         }
         .refreshable {
             await loadData()
+            // Haptic feedback when refresh completes
+            WKInterfaceDevice.current().play(.success)
         }
         .onAppear {
             if favoritesManager == nil {
@@ -91,9 +91,37 @@ struct FavoritesSectionView: View {
     let dataService: DataService
     let locationService: LocationService
 
+    // Detect user's city from location (same logic as LinesView)
+    private var userCity: String {
+        guard let location = locationService.currentLocation else {
+            return "Madrid"  // Default to Madrid if no location
+        }
+
+        let latitude = location.coordinate.latitude
+        let longitude = location.coordinate.longitude
+
+        // Sevilla: roughly 37.3-37.4 lat, -6.0 to -5.9 lon
+        if latitude > 37.2 && latitude < 37.5 && longitude > -6.1 && longitude < -5.8 {
+            return "Sevilla"
+        }
+
+        // Madrid: roughly 40.3-40.5 lat, -3.8 to -3.6 lon
+        if latitude > 40.2 && latitude < 40.6 && longitude > -3.9 && longitude < -3.5 {
+            return "Madrid"
+        }
+
+        return "Madrid"
+    }
+
     var favoriteStops: [Stop] {
         let allFavorites = favoritesManager.getFavoriteStops(from: dataService.stops)
-        return Array(allFavorites.prefix(5)) // Max 5
+        // Filter favorites to only show stops from the current city
+        let cityFavorites = allFavorites.filter { stop in
+            dataService.lines.contains { line in
+                line.city == userCity && line.stops.contains { $0.id == stop.id }
+            }
+        }
+        return Array(cityFavorites.prefix(5)) // Max 5
     }
 
     var body: some View {
@@ -132,18 +160,50 @@ struct RecommendedSectionView: View {
     let locationService: LocationService
     let favoritesManager: FavoritesManager?
 
+    // Detect user's city from location (same logic as LinesView)
+    private var userCity: String {
+        guard let location = locationService.currentLocation else {
+            return "Madrid"  // Default to Madrid if no location
+        }
+
+        let latitude = location.coordinate.latitude
+        let longitude = location.coordinate.longitude
+
+        // Sevilla: roughly 37.3-37.4 lat, -6.0 to -5.9 lon
+        if latitude > 37.2 && latitude < 37.5 && longitude > -6.1 && longitude < -5.8 {
+            return "Sevilla"
+        }
+
+        // Madrid: roughly 40.3-40.5 lat, -3.8 to -3.6 lon
+        if latitude > 40.2 && latitude < 40.6 && longitude > -3.9 && longitude < -3.5 {
+            return "Madrid"
+        }
+
+        return "Madrid"
+    }
+
+    // Get stops filtered by user's city
+    private var cityFilteredStops: [Stop] {
+        dataService.stops.filter { stop in
+            // Check if stop belongs to any line in the user's city
+            dataService.lines.contains { line in
+                line.city == userCity && line.stops.contains { $0.id == stop.id }
+            }
+        }
+    }
+
     var recommendedStops: [Stop] {
         var stops: [Stop] = []
         let favoriteIds = favoritesManager?.favorites.map { $0.stopId } ?? []
 
         // 1. Add nearest stop (if not in favorites)
-        if let nearest = locationService.findNearestStop(from: dataService.stops),
+        if let nearest = locationService.findNearestStop(from: cityFilteredStops),
            !favoriteIds.contains(nearest.id) {
             stops.append(nearest)
         }
 
         // 2. Add 2 most "frequent" stops (for now, just the first 2 that aren't favorites or nearest)
-        let otherStops = dataService.stops.filter { stop in
+        let otherStops = cityFilteredStops.filter { stop in
             !favoriteIds.contains(stop.id) && !stops.contains(where: { $0.id == stop.id })
         }
         stops.append(contentsOf: Array(otherStops.prefix(2)))
@@ -215,6 +275,9 @@ struct StopCardView: View {
                 // Add/Remove favorite button
                 if let manager = favoritesManager {
                     Button {
+                        // Haptic feedback for favorite action
+                        WKInterfaceDevice.current().play(.click)
+
                         if manager.isFavorite(stopId: stop.id) {
                             manager.removeFavorite(stopId: stop.id)
                         } else if manager.favorites.count < manager.maxFavorites {
