@@ -6,12 +6,67 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct ContentView: View {
+    @Environment(\.modelContext) private var modelContext
+
     @State private var locationService = LocationService()
     @State private var dataService = DataService()
+    @State private var favoritesManager: FavoritesManager?
+    @State private var selectedStop: Stop?
+
+    var body: some View {
+        TabView {
+            // Home - Nearest stop arrivals
+            HomeView(
+                locationService: locationService,
+                dataService: dataService,
+                favoritesManager: favoritesManager,
+                selectedStop: $selectedStop
+            )
+            .containerBackground(.black, for: .tabView)
+
+            // Favorites
+            if let manager = favoritesManager {
+                FavoritesView(
+                    selectedStop: $selectedStop,
+                    favoritesManager: manager,
+                    dataService: dataService,
+                    locationService: locationService
+                )
+                .containerBackground(.black, for: .tabView)
+            }
+        }
+        .tabViewStyle(.verticalPage)
+        .onAppear {
+            if favoritesManager == nil {
+                favoritesManager = FavoritesManager(modelContext: modelContext)
+            }
+        }
+        .onChange(of: selectedStop) { _, newStop in
+            // When a favorite is selected, show its arrivals
+            if newStop != nil {
+                // Navigate to home view with selected stop
+                // This will be handled in HomeView
+            }
+        }
+    }
+}
+
+struct HomeView: View {
+    let locationService: LocationService
+    let dataService: DataService
+    let favoritesManager: FavoritesManager?
+    @Binding var selectedStop: Stop?
+
     @State private var arrivals: [Arrival] = []
     @State private var nearestStop: Stop?
+    @State private var showAddedToFavorites = false
+
+    var currentStop: Stop? {
+        selectedStop ?? nearestStop
+    }
 
     var body: some View {
         NavigationStack {
@@ -20,12 +75,20 @@ struct ContentView: View {
                     if dataService.isLoading {
                         ProgressView("Loading...")
                             .padding()
-                    } else if let stop = nearestStop {
+                    } else if let stop = currentStop {
                         // Stop info header
                         VStack(spacing: 4) {
-                            Text(stop.name)
-                                .font(.title3)
-                                .fontWeight(.bold)
+                            HStack {
+                                Text(stop.name)
+                                    .font(.title3)
+                                    .fontWeight(.bold)
+
+                                if let manager = favoritesManager, manager.isFavorite(stopId: stop.id) {
+                                    Image(systemName: "star.fill")
+                                        .font(.caption)
+                                        .foregroundStyle(.yellow)
+                                }
+                            }
 
                             if let location = locationService.currentLocation {
                                 Text(stop.formattedDistance(from: location))
@@ -34,6 +97,48 @@ struct ContentView: View {
                             }
                         }
                         .padding(.top, 8)
+                        .contextMenu {
+                            if let manager = favoritesManager {
+                                if manager.isFavorite(stopId: stop.id) {
+                                    Button(role: .destructive) {
+                                        manager.removeFavorite(stopId: stop.id)
+                                    } label: {
+                                        Label("Remove from Favorites", systemImage: "star.slash")
+                                    }
+                                } else if manager.favorites.count < manager.maxFavorites {
+                                    Button {
+                                        if manager.addFavorite(stop: stop) {
+                                            showAddedToFavorites = true
+                                        }
+                                    } label: {
+                                        Label("Add to Favorites", systemImage: "star")
+                                    }
+                                } else {
+                                    Text("Favorites Full (\(manager.maxFavorites) max)")
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+
+                        if showAddedToFavorites {
+                            HStack {
+                                Image(systemName: "star.fill")
+                                    .foregroundStyle(.yellow)
+                                Text("Added to Favorites")
+                                    .font(.caption)
+                            }
+                            .padding(8)
+                            .background(.regularMaterial)
+                            .cornerRadius(8)
+                            .transition(.scale)
+                            .onAppear {
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                                    withAnimation {
+                                        showAddedToFavorites = false
+                                    }
+                                }
+                            }
+                        }
 
                         Divider()
                             .padding(.horizontal)
@@ -89,6 +194,13 @@ struct ContentView: View {
         .refreshable {
             await loadData()
         }
+        .onChange(of: selectedStop) { _, newStop in
+            if let stop = newStop {
+                Task {
+                    await loadArrivals(for: stop)
+                }
+            }
+        }
     }
 
     // MARK: - Data Loading
@@ -108,13 +220,17 @@ struct ContentView: View {
         // Fetch transport data
         await dataService.fetchTransportData()
 
-        // Find nearest stop
-        if let nearest = locationService.findNearestStop(from: dataService.stops) {
-            nearestStop = nearest
-
-            // Fetch arrivals for nearest stop
-            arrivals = await dataService.fetchArrivals(for: nearest.id)
+        // Find nearest stop (only if no stop is selected from favorites)
+        if selectedStop == nil {
+            if let nearest = locationService.findNearestStop(from: dataService.stops) {
+                nearestStop = nearest
+                await loadArrivals(for: nearest)
+            }
         }
+    }
+
+    private func loadArrivals(for stop: Stop) async {
+        arrivals = await dataService.fetchArrivals(for: stop.id)
     }
 }
 
