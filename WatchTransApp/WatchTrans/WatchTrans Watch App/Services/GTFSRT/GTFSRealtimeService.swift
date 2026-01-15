@@ -286,6 +286,19 @@ class GTFSRealtimeService {
         return stop
     }
 
+    /// Fetch stops by coordinates (returns all stops in the province)
+    func fetchStopsByCoordinates(latitude: Double, longitude: Double, limit: Int = 100) async throws -> [StopResponse] {
+        let urlString = "\(baseURL)/stops/by-coordinates?lat=\(latitude)&lon=\(longitude)&limit=\(limit)"
+
+        guard let url = URL(string: urlString) else {
+            throw NetworkError.badResponse
+        }
+
+        let stops: [StopResponse] = try await networkService.fetch(url)
+        print("✅ [RenfeServer] Fetched \(stops.count) stops for coordinates (\(latitude), \(longitude))")
+        return stops
+    }
+
     // MARK: - Trips
 
     /// Fetch trip details with all stops
