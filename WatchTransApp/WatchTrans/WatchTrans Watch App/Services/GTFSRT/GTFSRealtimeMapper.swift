@@ -3,7 +3,7 @@
 //  WatchTrans Watch App
 //
 //  Created by Juan Macias Gomez on 14/1/26.
-//  Maps GTFS-Realtime data to app's Arrival model
+//  Updated on 15/1/26 for RenfeServer API - Much simpler now!
 //
 
 import Foundation
@@ -15,166 +15,183 @@ class GTFSRealtimeMapper {
         self.dataService = dataService
     }
 
-    /// Map GTFS-RT feed to Arrival models for a specific stop
-    func mapToArrivals(feed: GTFSRealtimeFeed, stopId: String) -> [Arrival] {
+    // MARK: - Map DepartureResponse to Arrival
+
+    /// Map departures from RenfeServer API to Arrival models
+    /// The new API already provides most of the data we need!
+    func mapToArrivals(departures: [DepartureResponse], stopId: String) -> [Arrival] {
         guard let dataService = dataService else {
-            print("⚠️ [GTFS-RT Mapper] DataService is nil!")
+            print("⚠️ [Mapper] DataService is nil!")
+            return []
+        }
+
+        let now = Date()
+        var arrivals: [Arrival] = []
+
+        print("🗺️ [Mapper] Processing \(departures.count) departures for stop \(stopId)")
+
+        for departure in departures {
+            // Skip if already passed
+            guard departure.minutesUntil >= 0 else { continue }
+
+            // Find the line in our local data
+            let line = findLine(
+                routeShortName: departure.routeShortName,
+                routeId: departure.routeId,
+                stopId: stopId,
+                dataService: dataService
+            )
+
+            // Calculate times
+            let expectedTime = now.addingTimeInterval(TimeInterval(departure.minutesUntil * 60))
+            let scheduledTime = expectedTime  // API doesn't separate these yet
+
+            // Use headsign as destination, or try to determine from line
+            let destination = departure.headsign ?? determineDestination(line: line, stopId: stopId)
+
+            let arrival = Arrival(
+                id: departure.tripId,
+                lineId: line?.id ?? departure.routeId,
+                lineName: departure.routeShortName,
+                destination: destination,
+                scheduledTime: scheduledTime,
+                expectedTime: expectedTime,
+                platform: nil
+            )
+
+            arrivals.append(arrival)
+        }
+
+        // Sort by time and limit
+        let sortedArrivals = arrivals
+            .sorted { $0.expectedTime < $1.expectedTime }
+            .prefix(10)
+
+        print("✅ [Mapper] Mapped \(sortedArrivals.count) arrivals")
+        return Array(sortedArrivals)
+    }
+
+    // MARK: - Map ETAResponse to Arrival (with delay info)
+
+    /// Map ETAs from RenfeServer API to Arrival models
+    /// This includes accurate delay information
+    func mapToArrivals(etas: [ETAResponse], stopId: String) -> [Arrival] {
+        guard let dataService = dataService else {
+            print("⚠️ [Mapper] DataService is nil!")
             return []
         }
 
         var arrivals: [Arrival] = []
         let now = Date()
 
-        print("🗺️ [GTFS-RT Mapper] Processing \(feed.entity.count) entities for stop \(stopId)")
+        for eta in etas {
+            // Skip if already passed
+            guard eta.estimatedArrival > now else { continue }
 
-        for entity in feed.entity {
-            guard let tripUpdate = entity.tripUpdate else { continue }
+            // We need to look up route info from the trip
+            // For now, extract from tripId if possible
+            let lineInfo = extractLineInfo(from: eta.tripId, dataService: dataService)
 
-            // Skip cancelled trips
-            if tripUpdate.trip.scheduleRelationship == .cancelled {
-                continue
-            }
+            let arrival = Arrival(
+                id: eta.tripId,
+                lineId: lineInfo?.id ?? eta.tripId,
+                lineName: lineInfo?.name ?? "?",
+                destination: "Unknown",  // ETA endpoint doesn't include headsign
+                scheduledTime: eta.scheduledArrival,
+                expectedTime: eta.estimatedArrival,
+                platform: nil
+            )
 
-            // Find stop time updates for our stop
-            for stopTime in tripUpdate.stopTimeUpdate where stopTime.stopId == stopId {
-                guard let arrivalDate = stopTime.arrivalDate else { continue }
-
-                // Only include future arrivals
-                let expectedDate = stopTime.expectedArrivalDate ?? arrivalDate
-                guard expectedDate > now else { continue }
-
-                // Extract line code from trip ID
-                guard let lineCode = tripUpdate.trip.extractedLineCode else {
-                    print("⚠️ [GTFS-RT Mapper] Could not extract line code from trip: \(tripUpdate.trip.tripId)")
-                    continue
-                }
-
-                // Map line code to app's Line object
-                guard let line = mapLineCode(lineCode, forStopId: stopId, dataService: dataService) else {
-                    print("⚠️ [GTFS-RT Mapper] Could not map line code '\(lineCode)' to Line for stop \(stopId)")
-                    continue
-                }
-
-                // Determine destination
-                let destination = determineDestination(
-                    tripUpdate: tripUpdate,
-                    line: line,
-                    currentStopId: stopId
-                )
-
-                // Create Arrival
-                let arrival = Arrival(
-                    id: entity.id,
-                    lineId: line.id,
-                    lineName: line.name,
-                    destination: destination,
-                    scheduledTime: arrivalDate,
-                    expectedTime: expectedDate,
-                    platform: nil  // Platform info would be in vehicle positions feed
-                )
-
-                print("✅ [GTFS-RT Mapper] Created arrival: \(line.name) to \(destination) at \(expectedDate)")
-
-                arrivals.append(arrival)
-            }
+            arrivals.append(arrival)
         }
 
-        // Sort by expected time and return closest arrivals
-        let sortedArrivals = arrivals
-            .sorted { $0.expectedTime < $1.expectedTime }
-            .prefix(10)  // Reasonable limit
-            .map { $0 }
-
-        print("✅ [GTFS-RT Mapper] Mapped \(arrivals.count) total arrivals, returning top \(sortedArrivals.count)")
-
-        return Array(sortedArrivals)
+        return arrivals.sorted { $0.expectedTime < $1.expectedTime }
     }
 
-    // MARK: - Private Helpers
+    // MARK: - Helpers
 
-    /// Map line code (e.g., "C1") to app's Line object
-    /// Requires knowing which city/network this stop belongs to
-    private func mapLineCode(_ lineCode: String, forStopId stopId: String, dataService: DataService) -> Line? {
-        // Find which lines serve this stop
+    /// Find line in DataService by route name or ID
+    private func findLine(routeShortName: String, routeId: String, stopId: String, dataService: DataService) -> Line? {
+        let normalizedName = routeShortName.uppercased()
+
+        // First try: find lines that serve this stop
         let linesServingStop = dataService.lines.filter { line in
             line.stops.contains { $0.id == stopId }
         }
 
-        // Match line code to one of these lines
-        // e.g., "C1" matches "sevilla_c1" or "madrid_c1"
-        let normalizedCode = lineCode.uppercased()
-
-        for line in linesServingStop {
-            // Extract code from line name (e.g., "C1" from line with name "C1")
-            if line.name.uppercased() == normalizedCode {
-                return line
-            }
-
-            // Also check ID suffix (e.g., "madrid_c1" ends with "c1")
-            if line.id.uppercased().hasSuffix(normalizedCode.lowercased()) {
-                return line
-            }
+        // Match by name
+        if let match = linesServingStop.first(where: { $0.name.uppercased() == normalizedName }) {
+            return match
         }
 
-        // Fallback: try to match without city prefix
-        return dataService.lines.first { line in
-            line.name.uppercased() == normalizedCode
+        // Match by ID suffix
+        if let match = linesServingStop.first(where: { $0.id.uppercased().hasSuffix(normalizedName) }) {
+            return match
+        }
+
+        // Fallback: any line with matching name
+        return dataService.lines.first { $0.name.uppercased() == normalizedName }
+    }
+
+    /// Determine destination based on line and current stop position
+    private func determineDestination(line: Line?, stopId: String) -> String {
+        guard let line = line else { return "Unknown" }
+
+        guard let currentIndex = line.stops.firstIndex(where: { $0.id == stopId }) else {
+            return line.stops.last?.name ?? "Unknown"
+        }
+
+        // Heuristic: if in first half, going to end; if in second half, going to start
+        if currentIndex < line.stops.count / 2 {
+            return line.stops.last?.name ?? "Unknown"
+        } else {
+            return line.stops.first?.name ?? "Unknown"
         }
     }
 
-    /// Determine destination for this trip
-    private func determineDestination(tripUpdate: TripUpdate, line: Line, currentStopId: String) -> String {
-        // Find current stop's position in the line
-        guard let currentStopIndex = line.stops.firstIndex(where: { $0.id == currentStopId }) else {
-            // Fallback: return line's last stop
-            return line.stops.last?.name ?? "Unknown"
+    /// Extract line info from trip ID (e.g., "3010X23522C1" → "C1")
+    private func extractLineInfo(from tripId: String, dataService: DataService) -> Line? {
+        let pattern = "[CT][0-9]+[a-z]?$"
+        guard let range = tripId.range(of: pattern, options: .regularExpression) else {
+            return nil
         }
 
-        let totalStops = line.stops.count
-
-        // Determine direction based on stop position
-        // If stop is in first half of line, destination is likely last stop
-        // If stop is in second half, destination is likely first stop
-        if currentStopIndex < totalStops / 2 {
-            // Going towards end of line
-            return line.stops.last?.name ?? "Unknown"
-        } else {
-            // Going towards start of line
-            return line.stops.first?.name ?? "Unknown"
-        }
-
-        // Note: This is a heuristic since GTFS-RT doesn't provide directionId
-        // A more robust solution would use the full trip schedule from static GTFS
+        let lineCode = String(tripId[range]).uppercased()
+        return dataService.lines.first { $0.name.uppercased() == lineCode }
     }
 }
 
-// MARK: - Debug Helpers
+// MARK: - Convenience Extensions
 
-extension GTFSRealtimeMapper {
-    /// Debug: Print all unique line codes found in feed
-    func debugLineCodes(feed: GTFSRealtimeFeed) {
-        var lineCodes = Set<String>()
+extension DepartureResponse {
+    /// Convert to Arrival directly (when line info is known)
+    func toArrival(lineId: String, lineName: String) -> Arrival {
+        let now = Date()
+        let expectedTime = now.addingTimeInterval(TimeInterval(minutesUntil * 60))
 
-        for entity in feed.entity {
-            guard let tripUpdate = entity.tripUpdate,
-                  let lineCode = tripUpdate.trip.extractedLineCode else { continue }
-            lineCodes.insert(lineCode)
-        }
-
-        print("📊 [GTFS-RT Mapper] Found line codes: \(lineCodes.sorted())")
+        return Arrival(
+            id: tripId,
+            lineId: lineId,
+            lineName: lineName,
+            destination: headsign ?? "Unknown",
+            scheduledTime: expectedTime,
+            expectedTime: expectedTime,
+            platform: nil
+        )
     }
+}
 
-    /// Debug: Print all unique stop IDs in feed
-    func debugStopIds(feed: GTFSRealtimeFeed) {
-        var stopIds = Set<String>()
-
-        for entity in feed.entity {
-            guard let tripUpdate = entity.tripUpdate else { continue }
-            for stopTime in tripUpdate.stopTimeUpdate {
-                stopIds.insert(stopTime.stopId)
-            }
-        }
-
-        print("📊 [GTFS-RT Mapper] Found \(stopIds.count) unique stops: \(stopIds.sorted().prefix(20))")
+extension ETAResponse {
+    /// Convert to Arrival directly (when line info is known)
+    func toArrival(lineId: String, lineName: String, destination: String) -> Arrival {
+        return Arrival(
+            id: tripId,
+            lineId: lineId,
+            lineName: lineName,
+            destination: destination,
+            scheduledTime: scheduledArrival,
+            expectedTime: estimatedArrival,
+            platform: nil
+        )
     }
 }

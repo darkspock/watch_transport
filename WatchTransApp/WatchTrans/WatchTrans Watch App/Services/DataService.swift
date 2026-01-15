@@ -68,7 +68,7 @@ class DataService {
         await loadMockData()
     }
 
-    // Fetch arrivals for a specific stop using GTFS-Realtime API
+    // Fetch arrivals for a specific stop using RenfeServer API
     func fetchArrivals(for stopId: String) async -> [Arrival] {
         print("🔍 [DataService] Fetching arrivals for stop: \(stopId)")
 
@@ -78,13 +78,13 @@ class DataService {
             return cached
         }
 
-        // 2. Fetch from GTFS-RT API
+        // 2. Fetch from RenfeServer API (juanmacias.com:8002)
         do {
-            print("📡 [DataService] Cache miss, calling GTFS-RT API...")
-            let feed = try await gtfsRealtimeService.fetchTripUpdates(for: stopId)
-            print("📊 [DataService] API returned \(feed.entity.count) trip updates for stop \(stopId)")
+            print("📡 [DataService] Cache miss, calling RenfeServer API...")
+            let departures = try await gtfsRealtimeService.fetchDepartures(stopId: stopId, limit: 10)
+            print("📊 [DataService] API returned \(departures.count) departures for stop \(stopId)")
 
-            let arrivals = gtfsMapper.mapToArrivals(feed: feed, stopId: stopId)
+            let arrivals = gtfsMapper.mapToArrivals(departures: departures, stopId: stopId)
             print("✅ [DataService] Mapped to \(arrivals.count) arrivals")
 
             // 3. Cache results
@@ -93,7 +93,7 @@ class DataService {
             return arrivals
         } catch {
             // 4. Handle errors gracefully
-            print("⚠️ [DataService] GTFS-RT Error: \(error)")
+            print("⚠️ [DataService] RenfeServer API Error: \(error)")
 
             // Try stale cache as fallback
             if let stale = getStaleCachedArrivals(for: stopId) {
@@ -101,9 +101,10 @@ class DataService {
                 return stale
             }
 
-            // Last resort: return empty (UI shows "No arrivals")
+            // Last resort: return mock data for now
+            print("ℹ️ [DataService] Falling back to mock arrivals for stop \(stopId)")
             self.error = error
-            return []
+            return generateMockArrivals(for: stopId)
         }
     }
 
