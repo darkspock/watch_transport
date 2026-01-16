@@ -12,18 +12,7 @@ struct LinesView: View {
     let dataService: DataService
     let locationService: LocationService
 
-    // Detect user's network from loaded stops (they have nucleoName from API)
-    private var userNetwork: NetworkResponse? {
-        // Get network from stops (nucleoName is set by the API based on coordinates)
-        if let firstStop = dataService.stops.first,
-           let nucleoName = firstStop.nucleoName {
-            return dataService.networks.first { $0.code.lowercased() == nucleoName.lowercased() }
-        }
-        // Return first network if stops not loaded yet
-        return dataService.networks.first
-    }
-
-    // Get all Cercanías lines from the API
+    // Get all Cercanías lines from the API (already filtered by nucleo)
     var cercaniasLines: [Line] {
         dataService.lines
             .filter { $0.type == .cercanias }
@@ -48,22 +37,9 @@ struct LinesView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                // Show detected network info
-                if let network = userNetwork {
-                    HStack(spacing: 8) {
-                        Circle()
-                            .fill(Color(hex: network.color) ?? .blue)
-                            .frame(width: 12, height: 12)
-                        Text(network.name)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        Text("\(network.routeCount) líneas")
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 4)
+                // Show detected nucleo info
+                if let nucleo = dataService.currentNucleo {
+                    NucleoHeaderView(nucleo: nucleo)
                 }
 
                 // Cercanías Lines Section
@@ -100,8 +76,8 @@ struct LinesView: View {
                         .padding()
                 }
 
-                // Show all available networks for browsing
-                if dataService.networks.count > 1 {
+                // Show all available nucleos for browsing
+                if dataService.nucleos.count > 1 {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Otros núcleos")
                             .font(.headline)
@@ -109,8 +85,8 @@ struct LinesView: View {
                             .padding(.horizontal, 12)
                             .padding(.top, 16)
 
-                        ForEach(dataService.networks.filter { $0.code != userNetwork?.code }) { network in
-                            NetworkRowView(network: network)
+                        ForEach(dataService.nucleos.filter { $0.id != dataService.currentNucleo?.id }) { nucleo in
+                            NucleoRowView(nucleo: nucleo)
                         }
                     }
                 }
@@ -123,31 +99,67 @@ struct LinesView: View {
     }
 }
 
-// MARK: - Network Row Component
+// MARK: - Nucleo Header Component
 
-struct NetworkRowView: View {
-    let network: NetworkResponse
+struct NucleoHeaderView: View {
+    let nucleo: NucleoResponse
 
-    var networkColor: Color {
-        Color(hex: network.color) ?? .blue
+    var nucleoColor: Color {
+        // Parse "R,G,B" format
+        let components = nucleo.color.split(separator: ",").compactMap { Double($0.trimmingCharacters(in: .whitespaces)) }
+        if components.count == 3 {
+            return Color(red: components[0]/255, green: components[1]/255, blue: components[2]/255)
+        }
+        return .blue
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(nucleoColor)
+                .frame(width: 12, height: 12)
+            Text(nucleo.name)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Text("\(nucleo.linesCount) líneas")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.horizontal, 12)
+        .padding(.bottom, 4)
+    }
+}
+
+// MARK: - Nucleo Row Component
+
+struct NucleoRowView: View {
+    let nucleo: NucleoResponse
+
+    var nucleoColor: Color {
+        let components = nucleo.color.split(separator: ",").compactMap { Double($0.trimmingCharacters(in: .whitespaces)) }
+        if components.count == 3 {
+            return Color(red: components[0]/255, green: components[1]/255, blue: components[2]/255)
+        }
+        return .blue
     }
 
     var body: some View {
         HStack(spacing: 12) {
             Circle()
-                .fill(networkColor)
+                .fill(nucleoColor)
                 .frame(width: 32, height: 32)
                 .overlay(
-                    Text(String(network.code.prefix(1)).uppercased())
+                    Text(String(nucleo.name.prefix(1)).uppercased())
                         .font(.system(size: 14, weight: .bold))
                         .foregroundStyle(.white)
                 )
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(network.name)
+                Text(nucleo.name)
                     .font(.subheadline)
                     .fontWeight(.medium)
-                Text("\(network.city) - \(network.routeCount) líneas")
+                Text("\(nucleo.stationsCount) estaciones - \(nucleo.linesCount) líneas")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }

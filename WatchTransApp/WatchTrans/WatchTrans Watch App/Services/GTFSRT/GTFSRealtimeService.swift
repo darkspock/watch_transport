@@ -311,6 +311,50 @@ class GTFSRealtimeService {
         return trip
     }
 
+    // MARK: - Nucleos
+
+    /// Fetch all nucleos (with bounding boxes for location detection)
+    func fetchNucleos() async throws -> [NucleoResponse] {
+        guard let url = URL(string: "\(baseURL)/nucleos") else {
+            throw NetworkError.badResponse
+        }
+
+        let nucleos: [NucleoResponse] = try await networkService.fetch(url)
+        return nucleos
+    }
+
+    /// Fetch a specific nucleo
+    func fetchNucleo(nucleoId: Int) async throws -> NucleoResponse {
+        guard let url = URL(string: "\(baseURL)/nucleos/\(nucleoId)") else {
+            throw NetworkError.badResponse
+        }
+
+        let nucleo: NucleoResponse = try await networkService.fetch(url)
+        return nucleo
+    }
+
+    /// Fetch stops by nucleo name
+    func fetchStopsByNucleo(nucleoName: String, limit: Int = 500) async throws -> [StopResponse] {
+        let encodedName = nucleoName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? nucleoName
+        guard let url = URL(string: "\(baseURL)/stops/by-nucleo?nucleo_name=\(encodedName)&limit=\(limit)") else {
+            throw NetworkError.badResponse
+        }
+
+        let stops: [StopResponse] = try await networkService.fetch(url)
+        return stops
+    }
+
+    /// Fetch routes by nucleo name
+    func fetchRoutesByNucleo(nucleoName: String) async throws -> [RouteResponse] {
+        let encodedName = nucleoName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? nucleoName
+        guard let url = URL(string: "\(baseURL)/routes?nucleo_name=\(encodedName)") else {
+            throw NetworkError.badResponse
+        }
+
+        let routes: [RouteResponse] = try await networkService.fetch(url)
+        return routes
+    }
+
     // MARK: - Trigger Realtime Fetch
 
     /// Trigger a fetch of realtime data from Renfe API
