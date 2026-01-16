@@ -57,6 +57,23 @@ struct ETAResponse: Codable, Identifiable {
     let calculatedAt: Date
 
     var id: String { "\(tripId)_\(stopId)" }
+
+    enum CodingKeys: String, CodingKey {
+        case tripId = "trip_id"
+        case stopId = "stop_id"
+        case scheduledArrival = "scheduled_arrival"
+        case estimatedArrival = "estimated_arrival"
+        case delaySeconds = "delay_seconds"
+        case delayMinutes = "delay_minutes"
+        case isDelayed = "is_delayed"
+        case isOnTime = "is_on_time"
+        case confidenceLevel = "confidence_level"
+        case calculationMethod = "calculation_method"
+        case vehicleId = "vehicle_id"
+        case distanceToStopMeters = "distance_to_stop_meters"
+        case currentStopId = "current_stop_id"
+        case calculatedAt = "calculated_at"
+    }
 }
 
 // MARK: - Stop Delay Response
@@ -69,6 +86,15 @@ struct StopDelayResponse: Codable {
     let arrivalTime: Date?
     let departureDelay: Int?
     let departureTime: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case tripId = "trip_id"
+        case stopId = "stop_id"
+        case arrivalDelay = "arrival_delay"
+        case arrivalTime = "arrival_time"
+        case departureDelay = "departure_delay"
+        case departureTime = "departure_time"
+    }
 }
 
 // MARK: - Vehicle Position Response
@@ -85,6 +111,16 @@ struct VehiclePositionResponse: Codable, Identifiable {
     let updatedAt: Date?
 
     var id: String { vehicleId }
+
+    enum CodingKeys: String, CodingKey {
+        case vehicleId = "vehicle_id"
+        case tripId = "trip_id"
+        case position
+        case currentStatus = "current_status"
+        case stopId = "stop_id"
+        case label, timestamp
+        case updatedAt = "updated_at"
+    }
 }
 
 struct PositionSchema: Codable {
@@ -279,6 +315,17 @@ struct TripUpdateResponse: Codable, Identifiable {
     let updatedAt: Date?
 
     var id: String { tripId }
+
+    enum CodingKeys: String, CodingKey {
+        case tripId = "trip_id"
+        case delay
+        case delayMinutes = "delay_minutes"
+        case isDelayed = "is_delayed"
+        case vehicleId = "vehicle_id"
+        case wheelchairAccessible = "wheelchair_accessible"
+        case timestamp
+        case updatedAt = "updated_at"
+    }
 }
 
 // MARK: - Nucleo Response

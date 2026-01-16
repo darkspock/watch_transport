@@ -34,8 +34,8 @@ class NetworkService {
             }
 
             // Decode JSON
+            // Note: We use explicit CodingKeys in models, so don't use .convertFromSnakeCase
             let decoder = JSONDecoder()
-            decoder.keyDecodingStrategy = .convertFromSnakeCase
 
             do {
                 return try decoder.decode(T.self, from: data)
