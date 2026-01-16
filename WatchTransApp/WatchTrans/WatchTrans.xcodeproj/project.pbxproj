@@ -568,7 +568,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "WatchTrans Watch App/Info.plist";
+				INFOPLIST_FILE = "WatchTrans-Watch-App-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = WatchTrans;
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "WatchTrans needs your location to find nearby transport stops";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
@@ -602,7 +602,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "WatchTrans Watch App/Info.plist";
+				INFOPLIST_FILE = "WatchTrans-Watch-App-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = WatchTrans;
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "WatchTrans needs your location to find nearby transport stops";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
