@@ -170,7 +170,8 @@ class DataService {
     }
 
     /// Initialize data - call this on app launch
-    func fetchTransportData() async {
+    /// Pass coordinates to load stops for the user's location
+    func fetchTransportData(latitude: Double? = nil, longitude: Double? = nil) async {
         isLoading = true
         defer { isLoading = false }
 
@@ -180,7 +181,12 @@ class DataService {
         // Fetch routes to populate lines
         await fetchRoutes()
 
-        print("✅ [DataService] Initial data load complete: \(networks.count) networks, \(lines.count) lines")
+        // Fetch stops by coordinates if provided
+        if let lat = latitude, let lon = longitude {
+            await fetchStopsByCoordinates(latitude: lat, longitude: lon)
+        }
+
+        print("✅ [DataService] Initial data load complete: \(networks.count) networks, \(lines.count) lines, \(stops.count) stops")
     }
 
     // Fetch arrivals for a specific stop using RenfeServer API

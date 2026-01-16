@@ -82,7 +82,11 @@ struct ContentView: View {
 
         locationService.startUpdating()
         try? await Task.sleep(nanoseconds: 1_000_000_000)
-        await dataService.fetchTransportData()
+
+        // Pass user's coordinates to load nearby stops
+        let lat = locationService.currentLocation?.coordinate.latitude
+        let lon = locationService.currentLocation?.coordinate.longitude
+        await dataService.fetchTransportData(latitude: lat, longitude: lon)
     }
 }
 
@@ -93,37 +97,10 @@ struct FavoritesSectionView: View {
     let dataService: DataService
     let locationService: LocationService
 
-    // Detect user's city from location (same logic as LinesView)
-    private var userCity: String {
-        guard let location = locationService.currentLocation else {
-            return "Madrid"  // Default to Madrid if no location
-        }
-
-        let latitude = location.coordinate.latitude
-        let longitude = location.coordinate.longitude
-
-        // Sevilla: roughly 37.3-37.4 lat, -6.0 to -5.9 lon
-        if latitude > 37.2 && latitude < 37.5 && longitude > -6.1 && longitude < -5.8 {
-            return "Sevilla"
-        }
-
-        // Madrid: roughly 40.3-40.5 lat, -3.8 to -3.6 lon
-        if latitude > 40.2 && latitude < 40.6 && longitude > -3.9 && longitude < -3.5 {
-            return "Madrid"
-        }
-
-        return "Madrid"
-    }
-
+    // Favorites now just show all saved favorites (stops are loaded by coordinates)
     var favoriteStops: [Stop] {
         let allFavorites = favoritesManager.getFavoriteStops(from: dataService.stops)
-        // Filter favorites to only show stops from the current city
-        let cityFavorites = allFavorites.filter { stop in
-            dataService.lines.contains { line in
-                line.city == userCity && line.stops.contains { $0.id == stop.id }
-            }
-        }
-        return Array(cityFavorites.prefix(5)) // Max 5
+        return Array(allFavorites.prefix(5)) // Max 5
     }
 
     var body: some View {
@@ -162,50 +139,29 @@ struct RecommendedSectionView: View {
     let locationService: LocationService
     let favoritesManager: FavoritesManager?
 
-    // Detect user's city from location (same logic as LinesView)
-    private var userCity: String {
-        guard let location = locationService.currentLocation else {
-            return "Madrid"  // Default to Madrid if no location
-        }
-
-        let latitude = location.coordinate.latitude
-        let longitude = location.coordinate.longitude
-
-        // Sevilla: roughly 37.3-37.4 lat, -6.0 to -5.9 lon
-        if latitude > 37.2 && latitude < 37.5 && longitude > -6.1 && longitude < -5.8 {
-            return "Sevilla"
-        }
-
-        // Madrid: roughly 40.3-40.5 lat, -3.8 to -3.6 lon
-        if latitude > 40.2 && latitude < 40.6 && longitude > -3.9 && longitude < -3.5 {
-            return "Madrid"
-        }
-
-        return "Madrid"
-    }
-
-    // Get stops filtered by user's city
-    private var cityFilteredStops: [Stop] {
-        dataService.stops.filter { stop in
-            // Check if stop belongs to any line in the user's city
-            dataService.lines.contains { line in
-                line.city == userCity && line.stops.contains { $0.id == stop.id }
-            }
-        }
-    }
-
+    // Stops are already filtered by coordinates from the API
+    // They come from the user's province/nucleo automatically
     var recommendedStops: [Stop] {
         var stops: [Stop] = []
         let favoriteIds = favoritesManager?.favorites.map { $0.stopId } ?? []
 
         // 1. Add nearest stop (if not in favorites)
-        if let nearest = locationService.findNearestStop(from: cityFilteredStops),
+        if let nearest = locationService.findNearestStop(from: dataService.stops),
            !favoriteIds.contains(nearest.id) {
             stops.append(nearest)
         }
 
-        // 2. Add 2 most "frequent" stops (for now, just the first 2 that aren't favorites or nearest)
-        let otherStops = cityFilteredStops.filter { stop in
+        // 2. Add 2 more stops (sorted by distance, that aren't favorites or nearest)
+        let sortedByDistance: [Stop]
+        if let location = locationService.currentLocation {
+            sortedByDistance = dataService.stops.sorted {
+                $0.distance(from: location) < $1.distance(from: location)
+            }
+        } else {
+            sortedByDistance = dataService.stops
+        }
+
+        let otherStops = sortedByDistance.filter { stop in
             !favoriteIds.contains(stop.id) && !stops.contains(where: { $0.id == stop.id })
         }
         stops.append(contentsOf: Array(otherStops.prefix(2)))
