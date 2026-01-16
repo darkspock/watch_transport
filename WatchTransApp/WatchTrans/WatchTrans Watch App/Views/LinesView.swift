@@ -12,17 +12,22 @@ struct LinesView: View {
     let dataService: DataService
     let locationService: LocationService
 
-    // Get all Cercanías lines from the API (already filtered by nucleo)
+    // Get Cercanías lines for the current nucleo only
     var cercaniasLines: [Line] {
-        dataService.lines
-            .filter { $0.type == .cercanias }
-            .sorted { lineNumber($0.id) < lineNumber($1.id) }
+        guard let currentNucleo = dataService.currentNucleo else {
+            return []
+        }
+
+        return dataService.lines
+            .filter { $0.type == .cercanias && $0.nucleo.lowercased() == currentNucleo.name.lowercased() }
+            .sorted { lineNumber($0.name) < lineNumber($1.name) }
     }
 
-    // Extract numeric value from line ID for proper sorting
-    private func lineNumber(_ id: String) -> Double {
-        let numericString = id.uppercased()
+    // Extract numeric value from line name for proper sorting (C1, C2, C4a, C4b, C10)
+    private func lineNumber(_ name: String) -> Double {
+        let numericString = name.uppercased()
             .replacingOccurrences(of: "C", with: "")
+            .replacingOccurrences(of: "R", with: "")  // For Rodalies
 
         // Handle suffixes like "4a", "4b"
         if let lastChar = numericString.last, lastChar.isLetter {

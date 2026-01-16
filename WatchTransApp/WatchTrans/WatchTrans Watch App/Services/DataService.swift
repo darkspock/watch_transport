@@ -170,15 +170,27 @@ class DataService {
             // Group routes by short name to create lines
             var lineDict: [String: Line] = [:]
 
+            // Get nucleo color for fallback (API returns "R,G,B" format)
+            let nucleoColor = currentNucleo.map { nucleo -> String in
+                let rgb = nucleo.color.split(separator: ",").compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }
+                if rgb.count == 3 {
+                    return String(format: "#%02X%02X%02X", rgb[0], rgb[1], rgb[2])
+                }
+                return "#75B6E0"
+            } ?? "#75B6E0"
+
             for route in routeResponses {
                 let lineId = route.shortName.lowercased()
 
                 if lineDict[lineId] == nil {
+                    // Use route color if available, otherwise use nucleo color
+                    let color = route.color.map { "#\($0)" } ?? nucleoColor
+
                     lineDict[lineId] = Line(
                         id: lineId,
                         name: route.shortName,
                         type: .cercanias,
-                        colorHex: route.color.map { "#\($0)" } ?? "#75B6E0",
+                        colorHex: color,
                         nucleo: nucleoName
                     )
                 }
@@ -313,4 +325,5 @@ class DataService {
             return nil
         }
     }
+
 }
