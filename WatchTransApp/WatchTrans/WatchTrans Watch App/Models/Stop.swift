@@ -8,7 +8,7 @@
 import Foundation
 import CoreLocation
 
-struct Stop: Identifiable, Codable, Equatable {
+struct Stop: Identifiable, Equatable {
     let id: String
     let name: String          // "Sol", "Atocha"
     let latitude: Double
@@ -59,5 +59,30 @@ struct Stop: Identifiable, Codable, Equatable {
             let distanceInKm = distanceInMeters / 1000
             return String(format: "%.1fkm", distanceInKm)
         }
+    }
+}
+
+// MARK: - Codable conformance
+
+extension Stop: Codable {
+    enum CodingKeys: String, CodingKey {
+        case id, name, latitude, longitude, connectionLineIds
+        case province, nucleoName, accesibilidad
+        case hasParking, hasBusConnection, hasMetroConnection
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        latitude = try container.decode(Double.self, forKey: .latitude)
+        longitude = try container.decode(Double.self, forKey: .longitude)
+        connectionLineIds = try container.decodeIfPresent([String].self, forKey: .connectionLineIds) ?? []
+        province = try container.decodeIfPresent(String.self, forKey: .province)
+        nucleoName = try container.decodeIfPresent(String.self, forKey: .nucleoName)
+        accesibilidad = try container.decodeIfPresent(String.self, forKey: .accesibilidad)
+        hasParking = try container.decodeIfPresent(Bool.self, forKey: .hasParking) ?? false
+        hasBusConnection = try container.decodeIfPresent(Bool.self, forKey: .hasBusConnection) ?? false
+        hasMetroConnection = try container.decodeIfPresent(Bool.self, forKey: .hasMetroConnection) ?? false
     }
 }
