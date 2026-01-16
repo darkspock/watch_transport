@@ -13,7 +13,6 @@ import Foundation
 class DataService {
     var lines: [Line] = []
     var stops: [Stop] = []
-    var networks: [NetworkResponse] = []
     var nucleos: [NucleoResponse] = []
     var currentNucleo: NucleoResponse?  // Detected from user's location
     var isLoading = false
@@ -59,22 +58,7 @@ class DataService {
 
     // MARK: - Public Methods
 
-    /// Fetch all networks from API
-    func fetchNetworks() async {
-        isLoading = true
-        defer { isLoading = false }
-
-        do {
-            print("📡 [DataService] Fetching networks from API...")
-            networks = try await gtfsRealtimeService.fetchNetworks()
-            print("✅ [DataService] Loaded \(networks.count) networks")
-        } catch {
-            print("⚠️ [DataService] Failed to fetch networks: \(error)")
-            self.error = error
-        }
-    }
-
-    /// Fetch all nucleos from API (with bounding boxes)
+    /// Fetch all nucleos from API (with bounding boxes for location detection)
     func fetchNucleos() async {
         do {
             print("📡 [DataService] Fetching nucleos from API...")
@@ -91,76 +75,30 @@ class DataService {
         return nucleos.first { $0.contains(latitude: latitude, longitude: longitude) }
     }
 
-    /// Fetch stops by coordinates (returns all stops in that province)
-    func fetchStopsByCoordinates(latitude: Double, longitude: Double) async {
+    /// Initialize data - call this on app launch
+    /// Pass coordinates to detect user's nucleo and load relevant data
+    func fetchTransportData(latitude: Double? = nil, longitude: Double? = nil) async {
         isLoading = true
         defer { isLoading = false }
 
-        do {
-            print("📡 [DataService] Fetching stops for coordinates (\(latitude), \(longitude))...")
-            let stopResponses = try await gtfsRealtimeService.fetchStopsByCoordinates(
-                latitude: latitude,
-                longitude: longitude,
-                limit: 500
-            )
+        // 1. Fetch nucleos first (for location detection via bounding boxes)
+        await fetchNucleos()
 
-            // Convert StopResponse to Stop model with all available fields
-            stops = stopResponses.map { response in
-                Stop(
-                    id: response.id,
-                    name: response.name,
-                    latitude: response.lat,
-                    longitude: response.lon,
-                    connectionLineIds: [],  // Will be populated when we load routes
-                    province: response.province,
-                    nucleoName: response.nucleoName,
-                    accesibilidad: response.accesibilidad,
-                    hasParking: response.parkingBicis != nil && response.parkingBicis != "0",
-                    hasBusConnection: response.corBus != nil && response.corBus != "0",
-                    hasMetroConnection: response.corMetro != nil && response.corMetro != "0"
-                )
-            }
-
-            print("✅ [DataService] Loaded \(stops.count) stops")
-        } catch {
-            print("⚠️ [DataService] Failed to fetch stops: \(error)")
-            self.error = error
+        // 2. Detect user's nucleo from coordinates using bounding boxes
+        if let lat = latitude, let lon = longitude {
+            currentNucleo = detectNucleo(latitude: lat, longitude: lon)
+            print("📍 [DataService] Detected nucleo: \(currentNucleo?.name ?? "none") for coords (\(lat), \(lon))")
         }
-    }
 
-    /// Fetch all routes and convert to Lines
-    func fetchRoutes() async {
-        isLoading = true
-        defer { isLoading = false }
-
-        do {
-            print("📡 [DataService] Fetching routes from API...")
-            let routeResponses = try await gtfsRealtimeService.fetchRoutes()
-
-            // Group routes by short name to create lines
-            var lineDict: [String: Line] = [:]
-
-            for route in routeResponses {
-                let lineId = route.shortName.lowercased()
-
-                if lineDict[lineId] == nil {
-                    lineDict[lineId] = Line(
-                        id: lineId,
-                        name: route.shortName,
-                        type: .cercanias,
-                        colorHex: route.color.map { "#\($0)" } ?? "#75B6E0",
-                        stops: [],
-                        city: "España"  // API doesn't provide city per route
-                    )
-                }
-            }
-
-            lines = Array(lineDict.values)
-            print("✅ [DataService] Loaded \(lines.count) lines")
-        } catch {
-            print("⚠️ [DataService] Failed to fetch routes: \(error)")
-            self.error = error
+        // 3. Fetch stops and routes for the detected nucleo
+        if let nucleo = currentNucleo {
+            await fetchStopsForNucleo(nucleoName: nucleo.name)
+            await fetchRoutesForNucleo(nucleoName: nucleo.name)
+        } else {
+            print("⚠️ [DataService] No nucleo detected - user may be outside Cercanías coverage")
         }
+
+        print("✅ [DataService] Data load complete: \(nucleos.count) nucleos, \(lines.count) lines, \(stops.count) stops")
     }
 
     /// Fetch stops for a specific route
@@ -186,37 +124,6 @@ class DataService {
             print("⚠️ [DataService] Failed to fetch stops for route \(routeId): \(error)")
             return []
         }
-    }
-
-    /// Initialize data - call this on app launch
-    /// Pass coordinates to detect user's nucleo and load relevant data
-    func fetchTransportData(latitude: Double? = nil, longitude: Double? = nil) async {
-        isLoading = true
-        defer { isLoading = false }
-
-        // 1. Fetch nucleos first (for location detection)
-        await fetchNucleos()
-
-        // 2. Detect user's nucleo from coordinates
-        if let lat = latitude, let lon = longitude {
-            currentNucleo = detectNucleo(latitude: lat, longitude: lon)
-            print("📍 [DataService] Detected nucleo: \(currentNucleo?.name ?? "none")")
-        }
-
-        // 3. Fetch networks (for display purposes)
-        await fetchNetworks()
-
-        // 4. Fetch stops and routes for the detected nucleo
-        if let nucleo = currentNucleo {
-            await fetchStopsForNucleo(nucleoName: nucleo.name)
-            await fetchRoutesForNucleo(nucleoName: nucleo.name)
-        } else if let lat = latitude, let lon = longitude {
-            // Fallback: use coordinates directly
-            await fetchStopsByCoordinates(latitude: lat, longitude: lon)
-            await fetchRoutes()
-        }
-
-        print("✅ [DataService] Initial data load complete: \(nucleos.count) nucleos, \(lines.count) lines, \(stops.count) stops")
     }
 
     /// Fetch stops for a specific nucleo
