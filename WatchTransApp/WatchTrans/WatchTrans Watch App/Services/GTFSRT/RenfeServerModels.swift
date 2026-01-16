@@ -23,6 +23,18 @@ struct DepartureResponse: Codable, Identifiable {
     let stopSequence: Int
 
     var id: String { tripId }
+
+    enum CodingKeys: String, CodingKey {
+        case headsign
+        case tripId = "trip_id"
+        case routeId = "route_id"
+        case routeShortName = "route_short_name"
+        case routeColor = "route_color"
+        case departureTime = "departure_time"
+        case departureSeconds = "departure_seconds"
+        case minutesUntil = "minutes_until"
+        case stopSequence = "stop_sequence"
+    }
 }
 
 // MARK: - ETA Response
@@ -96,6 +108,14 @@ struct NetworkResponse: Codable, Identifiable {
     let routeCount: Int
 
     var id: String { code }
+
+    enum CodingKeys: String, CodingKey {
+        case code, name, city, region, color, description
+        case textColor = "text_color"
+        case logoUrl = "logo_url"
+        case wikipediaUrl = "wikipedia_url"
+        case routeCount = "route_count"
+    }
 }
 
 // MARK: - Network Detail Response
@@ -115,6 +135,14 @@ struct NetworkDetailResponse: Codable, Identifiable {
     let lines: [LineResponse]
 
     var id: String { code }
+
+    enum CodingKeys: String, CodingKey {
+        case code, name, city, region, color, description, lines
+        case textColor = "text_color"
+        case logoUrl = "logo_url"
+        case wikipediaUrl = "wikipedia_url"
+        case routeCount = "route_count"
+    }
 }
 
 // MARK: - Line Response
@@ -128,6 +156,13 @@ struct LineResponse: Codable, Identifiable {
     let routes: [[String: AnyCodableValue]]  // Flexible structure for route details
 
     var id: String { lineCode }
+
+    enum CodingKeys: String, CodingKey {
+        case color, routes
+        case lineCode = "line_code"
+        case textColor = "text_color"
+        case routeCount = "route_count"
+    }
 }
 
 // MARK: - Route Response
@@ -141,6 +176,15 @@ struct RouteResponse: Codable, Identifiable {
     let color: String?
     let textColor: String?
     let agencyId: String
+
+    enum CodingKeys: String, CodingKey {
+        case id, color
+        case shortName = "short_name"
+        case longName = "long_name"
+        case routeType = "route_type"
+        case textColor = "text_color"
+        case agencyId = "agency_id"
+    }
 }
 
 // MARK: - Stop Response
@@ -155,6 +199,13 @@ struct StopResponse: Codable, Identifiable {
     let locationType: Int
     let parentStationId: String?
     let zoneId: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, lat, lon, code
+        case locationType = "location_type"
+        case parentStationId = "parent_station_id"
+        case zoneId = "zone_id"
+    }
 }
 
 // MARK: - Trip Detail Response
@@ -169,6 +220,15 @@ struct TripDetailResponse: Codable, Identifiable {
     let headsign: String?
     let directionId: Int?
     let stops: [TripStopResponse]
+
+    enum CodingKeys: String, CodingKey {
+        case id, headsign, stops
+        case routeId = "route_id"
+        case routeShortName = "route_short_name"
+        case routeLongName = "route_long_name"
+        case routeColor = "route_color"
+        case directionId = "direction_id"
+    }
 }
 
 struct TripStopResponse: Codable {
@@ -179,6 +239,16 @@ struct TripStopResponse: Codable {
     let stopSequence: Int
     let stopLat: Double
     let stopLon: Double
+
+    enum CodingKeys: String, CodingKey {
+        case stopId = "stop_id"
+        case stopName = "stop_name"
+        case arrivalTime = "arrival_time"
+        case departureTime = "departure_time"
+        case stopSequence = "stop_sequence"
+        case stopLat = "stop_lat"
+        case stopLon = "stop_lon"
+    }
 }
 
 // MARK: - Trip Update Response (Realtime)
