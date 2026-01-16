@@ -188,7 +188,8 @@ class DataService {
                     lineDict[lineId] = existing
                 } else {
                     // Use route color if available, otherwise use nucleo color
-                    let color = route.color.map { "#\($0)" } ?? nucleoColor
+                    // API now returns colors with # prefix
+                    let color = route.color ?? nucleoColor
 
                     let line = Line(
                         id: lineId,
