@@ -189,7 +189,7 @@ struct RouteResponse: Codable, Identifiable {
 
 // MARK: - Stop Response
 
-/// Response from GET /api/v1/gtfs/stops
+/// Response from GET /api/v1/gtfs/stops and /api/v1/gtfs/stops/by-coordinates
 struct StopResponse: Codable, Identifiable {
     let id: String
     let name: String
@@ -200,11 +200,25 @@ struct StopResponse: Codable, Identifiable {
     let parentStationId: String?
     let zoneId: String?
 
+    // Additional fields from by-coordinates endpoint
+    let province: String?
+    let nucleoId: Int?
+    let nucleoName: String?
+    let parkingBicis: String?
+    let accesibilidad: String?
+    let corBus: String?
+    let corMetro: String?
+
     enum CodingKeys: String, CodingKey {
-        case id, name, lat, lon, code
+        case id, name, lat, lon, code, province, accesibilidad
         case locationType = "location_type"
         case parentStationId = "parent_station_id"
         case zoneId = "zone_id"
+        case nucleoId = "nucleo_id"
+        case nucleoName = "nucleo_name"
+        case parkingBicis = "parking_bicis"
+        case corBus = "cor_bus"
+        case corMetro = "cor_metro"
     }
 }
 

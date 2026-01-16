@@ -85,14 +85,20 @@ class DataService {
                 limit: 500
             )
 
-            // Convert StopResponse to Stop model
+            // Convert StopResponse to Stop model with all available fields
             stops = stopResponses.map { response in
                 Stop(
                     id: response.id,
                     name: response.name,
                     latitude: response.lat,
                     longitude: response.lon,
-                    connectionLineIds: []  // Will be populated when we load routes
+                    connectionLineIds: [],  // Will be populated when we load routes
+                    province: response.province,
+                    nucleoName: response.nucleoName,
+                    accesibilidad: response.accesibilidad,
+                    hasParking: response.parkingBicis != nil && response.parkingBicis != "0",
+                    hasBusConnection: response.corBus != nil && response.corBus != "0",
+                    hasMetroConnection: response.corMetro != nil && response.corMetro != "0"
                 )
             }
 
@@ -148,7 +154,13 @@ class DataService {
                     name: response.name,
                     latitude: response.lat,
                     longitude: response.lon,
-                    connectionLineIds: []
+                    connectionLineIds: [],
+                    province: response.province,
+                    nucleoName: response.nucleoName,
+                    accesibilidad: response.accesibilidad,
+                    hasParking: response.parkingBicis != nil && response.parkingBicis != "0",
+                    hasBusConnection: response.corBus != nil && response.corBus != "0",
+                    hasMetroConnection: response.corMetro != nil && response.corMetro != "0"
                 )
             }
         } catch {
@@ -268,7 +280,13 @@ class DataService {
                     name: response.name,
                     latitude: response.lat,
                     longitude: response.lon,
-                    connectionLineIds: []
+                    connectionLineIds: [],
+                    province: response.province,
+                    nucleoName: response.nucleoName,
+                    accesibilidad: response.accesibilidad,
+                    hasParking: response.parkingBicis != nil && response.parkingBicis != "0",
+                    hasBusConnection: response.corBus != nil && response.corBus != "0",
+                    hasMetroConnection: response.corMetro != nil && response.corMetro != "0"
                 )
             }
         } catch {
